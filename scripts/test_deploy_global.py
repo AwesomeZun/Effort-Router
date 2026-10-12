@@ -6,6 +6,7 @@ import sys
 import tempfile
 import tomllib
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
 
@@ -309,6 +310,26 @@ class DeployGlobalTests(unittest.TestCase):
             self.assertNotIn('Traceback', result.stderr)
             self.assertEqual(_live_bytes(home), before)
             self.assertFalse((home / 'backups').exists())
+
+
+class SnapshotCollisionTests(unittest.TestCase):
+    """r39 regression: two snapshots in the same UTC second must not collide."""
+
+    def test_same_second_snapshots_get_distinct_dirs(self):
+        import deploy_global
+        fixed = datetime(2026, 10, 12, 15, 0, 0, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            codex_home = base / 'codex'
+            codex_home.mkdir()
+            backup_root = base / 'backups'
+            with mock.patch.object(deploy_global, 'datetime') as fake:
+                fake.now.return_value = fixed
+                first, _ = deploy_global._snapshot(backup_root, codex_home, {})
+                second, _ = deploy_global._snapshot(backup_root, codex_home, {})
+            self.assertNotEqual(first, second)
+            self.assertTrue(first.is_dir())
+            self.assertTrue(second.is_dir())
 
 
 if __name__ == '__main__':
