@@ -14,6 +14,11 @@ from typing import Any
 
 from stagehand_gate_policy import TaskValidationError, validate_task
 
+DEFAULT_MODEL = 'openai/gpt-4o-mini'
+TOKEN_METRIC_FIELDS = ('total_prompt_tokens', 'total_completion_tokens',
+                      'total_reasoning_tokens', 'total_cached_input_tokens')
+MOCK_TOKEN_METRICS = {'total_prompt_tokens': 1000.0, 'total_cached_input_tokens': 400.0,
+                     'total_completion_tokens': 50.0, 'total_reasoning_tokens': 0.0}
 MOCK_SCENARIOS = ('done-first', 'retry-then-done', 'never-done', 'runner-error')
 API_KEY_VARS = ('OPENAI_API_KEY', 'ANTHROPIC_API_KEY')
 INSTALL_GUIDE = ('Stagehand SDK가 설치되어 있지 않다 — '
@@ -83,12 +88,12 @@ def run_mock_task(spec: dict[str, Any], scenario: str, attempt_index: int) -> di
     success = scenario == 'done-first' or (scenario == 'retry-then-done'
                                            and attempt_index >= 2)
     if success:
-        return {'status': 'success',
+        return {'status': 'success', 'metrics': dict(MOCK_TOKEN_METRICS),
                 'result': {'steps_completed': len(spec['steps']),
                            'actions': [{'action': step['action'],
                                         'instruction': step['instruction'],
                                         'status': 'done'} for step in spec['steps']]}}
-    return {'status': 'error',
+    return {'status': 'error', 'metrics': dict(MOCK_TOKEN_METRICS),
             'result': {'reason': f'시나리오 {scenario}의 {attempt_index}차 시도 실패 — '
                                  f'{len(spec["steps"])}개 단계 중 일부가 완료되지 않았다'},
             'error': f'시나리오 {scenario} {attempt_index}차 시도 실패'}
@@ -103,42 +108,52 @@ def run_stagehand_task(spec: dict[str, Any], attempt_index: int) -> dict[str, An
     try:
         import asyncio
 
-        from stagehand import Stagehand  # 지연 임포트(§2b)
+        from stagehand import Stagehand, local_browser  # 지연 임포트(§2b)
     except ImportError as error:
         raise RunnerUnavailableError(f'{INSTALL_GUIDE} (import stagehand 실패: {error})')
     return asyncio.run(_run_steps(spec, attempt_index))
 
 
 async def _run_steps(spec: dict[str, Any], attempt_index: int) -> dict[str, Any]:
-    from stagehand import Stagehand
+    from stagehand import Stagehand, local_browser
 
-    model_name = os.environ.get('STAGEHAND_MODEL') or 'openai/gpt-4o-mini'
-    stagehand = Stagehand(env='LOCAL', model_name=model_name)
+    model_name = os.environ.get('STAGEHAND_MODEL') or DEFAULT_MODEL
+    browser = await local_browser.launch(headless=True)
+    stagehand = None
     try:
-        await stagehand.init()
-        page = stagehand.page
+        stagehand = await Stagehand.create(browser=browser, model=model_name)
+        page = await stagehand.browser.context.active_page()
         await page.goto(spec['url'])
         actions = []
         for index, step in enumerate(spec['steps']):
-            actions.append(await _execute_step(page, step, index))
+            actions.append(await _execute_step(stagehand, page, step, index))
         return {'status': 'success',
                 'result': {'steps_completed': len(spec['steps']), 'actions': actions,
-                           'attempt_index': attempt_index}}
+                           'attempt_index': attempt_index},
+                'metrics': _token_metrics(await stagehand.metrics())}
     finally:
-        await stagehand.close()
+        if stagehand is not None:
+            await stagehand.close()
+        await browser.close()
 
 
-async def _execute_step(page: Any, step: dict[str, Any], index: int) -> dict[str, Any]:
+def _token_metrics(raw: Any) -> dict[str, float]:
+    """SDK StagehandMetrics에서 토큰 원천 필드만 추린다(숫자 화이트리스트 — r39 P1 계약)."""
+    return {name: float(getattr(raw, name)) for name in TOKEN_METRIC_FIELDS}
+
+
+async def _execute_step(stagehand: Any, page: Any, step: dict[str, Any],
+                        index: int) -> dict[str, Any]:
     action = step['action']
     if action == 'act':
-        await page.act(step['instruction'])
+        await stagehand.act(step['instruction'], page=page)
         return {'index': index, 'action': action, 'status': 'done'}
     if action == 'observe':
-        candidates = await page.observe(step['instruction'])
+        candidates = await stagehand.observe(step['instruction'], page=page)
         return {'index': index, 'action': action, 'status': 'done',
                 'candidates': len(candidates)}
     if action == 'extract':
-        extracted = await page.extract(step['instruction'])
+        extracted = await stagehand.extract(step['instruction'], page=page)
         return {'index': index, 'action': action, 'status': 'done',
                 'data': extracted}
     return {'index': index, 'action': action, 'status': 'error',
