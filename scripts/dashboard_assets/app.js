@@ -253,6 +253,7 @@ function renderLoading() {
   renderShell();
   showView('view-list');
   const container = document.getElementById('view-list');
+  delete container.__listShell; // 골격 캐시 무효화 — renderList가 재구축하게(분리 노드 렌더 방지)
   const note = document.createElement('p');
   note.className = 'empty-state';
   note.textContent = `${state.project} 과업을 불러오는 중…`;
