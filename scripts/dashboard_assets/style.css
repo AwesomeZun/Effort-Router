@@ -275,3 +275,14 @@
 /* 협폭 리사이즈 — 표 가로 스크롤 허용(열 클리핑 방지, 사용자 요구 2026-10-06) */
 #view-list { overflow-x: auto; }
 .task-table { min-width: 720px; }
+/* P2b 프로젝트 전환 네비 — 사이드바 워크스페이스 블록 아래(nav-item 톤 계승) */
+.project-nav { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; }
+.project-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 6px 12px; border: 0; border-radius: 8px; background: transparent;
+  color: var(--text-muted); font: inherit; font-size: var(--fs-sub);
+  font-weight: 600; text-align: left; cursor: pointer;
+}
+.project-item:hover { background: var(--bg-hover); }
+.project-item.active { background: var(--nav-active-bg); color: var(--nav-active-text); }
+.project-count { font-size: var(--fs-chip); font-weight: 700; }
