@@ -38,7 +38,7 @@ python3 scripts/dashboard_server.py   # → http://localhost:5777
 |------|------|
 | `SKILL.md` | 스킬 본체 — 티어 판정(§1)·라우팅 테이블(§2)·실행 제약(§3)·merge 권한(§4)·상태·인계 계약(§5)·타 하니스 매핑(§6)·Output Contract |
 | `AGENTS.md` | 저장소 작업의 모델·에포트 정책과 역할 템플릿 오류 예방 규칙 |
-| `agents/` | Claude Code 역할 정의 10종 + ChatGPT 데스크톱 UI 메타데이터 `openai.yaml` |
+| `agents/` | Claude Code 역할 정의 11종(역할 10 + 온디맨드 `ops-supervisor`) |
 | `platforms/` | Codex·ChatGPT 실행 어댑터와 기타 하니스 파생 문서 |
 | `scripts/` | 전역 Codex 역할 라우팅·설치 검증 스크립트 + jev 판단 계층 CLI(jev_judge.py·jev_modes.py — CLI 12종: tier·prune·escalation·memory-gate·stall·done·dup·loop·verify-run·watch·route·guard) + Stagehand 게이트 CLI(stagehand_gate.py 3종) + 검증 핀 게이트 CLI(verify_pin.py + 실행 엔진 verify_exec.py) + 워크트리 수명주기 게이트 CLI(worktree_gate.py 4종: create·done·list·sweep) + 트리 소유 게이트 CLI(tree_gate.py 5종: claim·release·check·status·prune) + 루프 탈출 게이트 CLI(neverstuck_gate.py — 결정론 무장 판정: 무브류 3회 게이트·S7 하드 시그널·선언탐색·취향 면제) |
 | `TESTS.md` | 검증 프로토콜·측정 결과·라운드별 개정 이력·재현 절차(방법론 원장 — r29 하드캡 분할 이후 게이트 과업 절은 TESTS-GATES.md로, r33 분할 이후 과거 라운드 r4~r17 기록은 TESTS-ARCHIVE.md로 이동) |
@@ -193,29 +193,32 @@ python3 scripts/dashboard_server.py --port 0   # OS 할당 포트 — stdout REA
 
 ## 모델 매핑
 
-일반 작업은 `gpt-6-luna / max`, 계획·고난도 추론은 `gpt-6.1-sol / high`다. Terra는 사용하지 않는다. 이 설치에서는 native spawn/fan-out을 사용하지 않는다.
+4케이스(① Claude Code · ② Claude Code + GLM · ③ ChatGPT 앱 & Codex · ④ ZCode)에서 허용하는 조합은 9개뿐이다. 역할 파일과 어댑터는 이 밖의 조합을 쓰지 않는다(`scripts/test_model_combos.py`가 강제).
 
-| 작업 | 모델·effort |
-|---|---|
-| 구현·조사·테스트·검증 | `gpt-6-luna / max` |
-| 계획·명세·아키텍처 | `gpt-6.1-sol / high` |
-| 계획 검토·리뷰·보안 판정 | `gpt-6.1-sol / high` |
+| 케이스 | 허용 조합 | 역할 배분 |
+|---|---|---|
+| ③ ChatGPT·Codex | `gpt-6-luna / max` | **일반 구현 — 항상 기본값** (`coder-medium`·`implement-med`·`implement-xhigh`·`core-xhigh`) |
+| ③ ChatGPT·Codex | `gpt-6.1-sol / high` | 계획·검토·보안 판정 (`plan-*`·`review-pr-xhigh`·`security-audit`) |
+| ③ ChatGPT·Codex | `gpt-6.1-sol / low` | S/M 간이 리뷰 (`review-pr-high`) |
+| ① Claude Code | `haiku-5.5 / high` | 코드 구현 전용 (`coder-medium`·`implement-med`) |
+| ① Claude Code | `sonnet / high` | 임계경로 구현·코어 (`implement-xhigh`·`core-xhigh`·`ops-supervisor`) |
+| ① Claude Code | `opus-5.5 / high` | 계획·검토·보안 (`plan-*`·`review-pr-*`·`security-audit`) |
+| ② Claude Code + GLM · ④ ZCode | `glm-5.3-flash / max` | 반복 구현 (`coder-medium`·`implement-med`) |
+| ② Claude Code + GLM · ④ ZCode | `glm-5.3 / max` | 임계경로·코어 구현, 최고 판정·보안 |
+| ② Claude Code + GLM · ④ ZCode | `glm-5.3 / high` | 일반 계획·S/M 리뷰 |
 
-`python3 scripts/configure_codex_plan.py --apply`는 고정 role 매핑을 백업과 함께 적용한다. 상세 설정과 검증은 [Codex adapter](platforms/codex.md)를 따른다.
+`python3 scripts/configure_codex_plan.py --apply`는 Codex 역할 매핑을 백업과 함께 적용한다. 상세 설정과 검증은 [Codex adapter](platforms/codex.md)를 따른다. 역할별 GLM 조합 표는 [GLM adapter](platforms/glm.md).
 
 ## 다른 하니스에서 쓰기
 
-Claude Code와 기타 환경에서는 티어 판정·증거 계약·Output Contract를 유지하고 각 하니스의 모델 체계로 치환한다.
+Claude Code와 기타 환경에서는 티어 판정·증거 계약·Output Contract를 유지하고 각 하니스의 모델 체계로 치환한다. 활성 어댑터는 4케이스 기준이다.
 
-| 환경 | 어댑터 | 형태 |
+| 케이스 | 어댑터 | 형태 |
 |------|--------|------|
-| Codex CLI | `platforms/codex.md` | AGENTS.md 병합 단편 + 커스텀 에이전트 TOML(`~/.codex/agents/`) role↔effort 매핑표 |
-| Qwen Code | `platforms/qwen.md` | QWEN.md 병합 단편 |
-| Gemini CLI | `platforms/gemini.md` | GEMINI.md 병합 단편 |
-| GLM Coding Plan | `platforms/glm.md` | 백엔드 교체 매핑(Claude Code 하니스 유지) |
-| ZCode (GLM 백엔드) | `platforms/zcode.md` | 빌트인 스폰 + 역할 계약 주입 매핑. 백엔드 교체(Claude Code+GLM)는 glm.md |
-| ChatGPT 앱 | `platforms/chat-app.md` | Codex 화면/Work/ChatGPT Classic 구분 |
-| Grok Bot (Cursor) | `platforms/grok.md` | 스킬 저장 + Task/CloudAgent 매핑. xAI grok.com은 chat-app.md |
+| ① Claude Code | `platforms/CLAUDE.md` | 10세션 토폴로지 + `~/.claude/agents/` 역할 정의 |
+| ② Claude Code + GLM 백엔드 | `platforms/glm.md` | 백엔드 교체 매핑(하니스 불변) + 역할별 GLM 조합 표 |
+| ③ ChatGPT 앱 & Codex | `platforms/codex.md`, `platforms/chat-app.md` | Codex TOML role↔effort 매핑 + ChatGPT Work/Classic 조합 |
+| ④ ZCode (GLM 백엔드) | `platforms/zcode.md` | 빌트인 스폰 + 역할 계약 주입, 모델은 메인 세션이 과업 단위로 선택 |
 
 설치·붙여넣기 절차는 `platforms/README.md`. 어댑터는 본문의 파생 축약 이식본이다 — 규칙 충돌 시 SKILL.md가 우선한다.
 

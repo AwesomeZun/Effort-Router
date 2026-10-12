@@ -124,7 +124,7 @@ class DeployGlobalTests(unittest.TestCase):
             self.assertTrue(all(gate['pass'] for gate in report['gates'].values()),
                             report['gates'])
             self.assertEqual(len(report['roles_copied']), 10)
-            self.assertEqual(report['mirror_synced'], 122)
+            self.assertEqual(report['mirror_synced'], 120)  # r40: qwen·gemini·grok 삭제(-3) × 미러 2곳 = -6 (r39 126 기준)
             self.assertTrue(Path(report['backup_dir']).is_dir())
             # (iv) 최상위 무손상 — 치환은 tail 섹션에만 적용됐다.
             config = tomllib.loads((home / 'config.toml').read_text())
