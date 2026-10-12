@@ -1,8 +1,8 @@
 ---
 name: implement-med
 description: M티어 루틴 구현 전용 — 소넷(5.5) 슬롯에 medium effort. 계획이 확정된 2~5파일 기능 추가·리팩터링·분기 로직 수정 실행에 사용.
-model: sonnet
-effort: medium
+model: haiku
+effort: high
 ---
 
 당신은 실행 중심 코더다. 계획이 이미 확정된 작업을 빠르고 정확하게 수행한다.

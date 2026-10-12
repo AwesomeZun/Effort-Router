@@ -29,6 +29,7 @@ python3 scripts/stagehand_gate.py --task-file scripts/fixtures/stagehand_gate_ta
 | `STAGEHAND_GATE_JEV_CMD` | jev 커맨드 오버라이드(플래그 > env > 기본) |
 | `STAGEHAND_GATE_MAX_RETRIES` | 재시도 상한 env 폴백(기본 2, 0..5) |
 | `STAGEHAND_MODEL` | Stagehand LLM 모델명(기본 `openai/gpt-4o-mini` — 과금 레이트 결정) |
+| `STAGEHAND_GATE_MAX_TOKENS` | 누적 토큰 상한 env 폴백(입력+출력 합, 양의 정수 — 미지정 시 꺼짐). 플래그 `--max-tokens`가 우선 |
 
 | 종료코드 | 의미 |
 |---|---|
@@ -36,6 +37,8 @@ python3 scripts/stagehand_gate.py --task-file scripts/fixtures/stagehand_gate_ta
 | 1 | retry-exhausted — 총 시도(1+max_retries) 소진 후에도 미확정 |
 | 2 | config/env 오류 — 키 부재·SDK 미설치·태스크 스키마 위반 등(즉시 종료) |
 | 3 | escalated — jev 판단 불능(exit≠0·비JSON·ok≠true). 브라우저 재시도 없이 즉시 상향 |
+
+**토큰 상한(r39 P2)**: 누적 입력+출력 토큰이 상한을 넘으면 `decision: token-cap-exceeded`로 **exit 1**, jev 호출·다음 시도 전에 중단한다(추가 과금 차단). 결과 JSON의 `token_cap`은 `off`(미지정)·`enforced`·`exceeded`·`unavailable`(원천 metrics 부재 — 상한이 걸렸는데 집계되지 않았음을 드러냄)이다. `token_usage`는 시도 누적 합(`input_tokens`·`output_tokens`·`cached_input_tokens`·`reasoning_output_tokens`). `--save-dir`을 주면 실 러너 시도분만 `usage.jsonl`에 남긴다(모의 러너 수치 미기록). `--max-cost-usd`는 단가표 부재로 제외 — 후속 과제.
 
 SDK 미설치 환경에서는 `--runner stagehand`가 exit 2로 실패-폐쇄한다(안내에 `scripts/setup_stagehand_env.sh` 포함). 게이트 분기 전수는 모의 러너 + 루프백 jev mock으로 `python3 scripts/test_stagehand_gate.py`에서 결정적으로 검증한다.
 
