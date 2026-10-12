@@ -152,6 +152,7 @@ function selectProject(id, fromRoute = false) {
   state.expandedDecisions = [];
   state.bundleDoc = null;
   state.loading = true;
+  renderLoading(); // D15 — 전환 즉시 명시적 로딩 화면
   if (!fromRoute) {
     state.route = { view: 'list', project: null, folder: null };
     if (window.location.hash !== '#/' && window.location.hash !== '') {
