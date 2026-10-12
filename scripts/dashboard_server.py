@@ -66,6 +66,8 @@ STATIC_ROUTES = {
     '/views/list.js': ('views/list.js', 'text/javascript; charset=utf-8'),
     '/views/activity.js': ('views/activity.js', 'text/javascript; charset=utf-8'),
     '/views/detail.js': ('views/detail.js', 'text/javascript; charset=utf-8'),
+    '/route.js': ('route.js', 'text/javascript; charset=utf-8'),
+    '/views/projects.js': ('views/projects.js', 'text/javascript; charset=utf-8'),
 }
 API_ROUTE = '/api/tasks'
 PROJECTS_API_ROUTE = '/api/projects'
