@@ -1,7 +1,8 @@
 'use strict';
-// P2b 뷰 — 사이드바 프로젝트 전환 네비(D1). button + textContent만 주입한다
-// (innerHTML·localStorage 금지 — F4). 선택 항목에 aria-current, 과업 수는
-// 선택 프로젝트의 state.tasks.length만 표시한다(D2 — 서버는 선택 프로젝트만 스캔).
+// P2b 뷰 — 사이드바 프로젝트 전환 네비(D1). button + textContent 주입만 허용되고
+// 마크업 문자열 주입·클라이언트 저장소는 금지다(F4). 선택 항목에 aria-current,
+// 과업 수는 선택 프로젝트의 state.tasks.length만 표시한다(D2 — 서버는 선택
+// 프로젝트만 스캔).
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
