@@ -27,8 +27,8 @@ AGENTS_OLD = (
 )
 
 CONFIG_OLD = (
-    'model = "gpt-6.1-sol"\n'
-    'model_reasoning_effort = "low"\n'
+    'model = "gpt-6-luna"\n'
+    'model_reasoning_effort = "max"\n'
     '[agents]\n'
     'enabled = true\n'
     '\n'
@@ -127,10 +127,10 @@ class DeployGlobalTests(unittest.TestCase):
             self.assertEqual(len(report['roles_copied']), 10)
             self.assertEqual(report['mirror_synced'], 120)  # r40: qwen·gemini·grok 삭제(-3) × 미러 2곳 = -6 (r39 126 기준)
             self.assertTrue(Path(report['backup_dir']).is_dir())
-            # (iv) 최상위 무손상 — 치환은 tail 섹션에만 적용됐다.
+            # (iv) 최상위 무손상 — 치환은 tail 섹션에만 적용됐다(r40 루트 luna/max 유지).
             config = tomllib.loads((home / 'config.toml').read_text())
-            self.assertEqual(config['model'], 'gpt-6.1-sol')
-            self.assertEqual(config['model_reasoning_effort'], 'low')
+            self.assertEqual(config['model'], 'gpt-6-luna')
+            self.assertEqual(config['model_reasoning_effort'], 'max')
             self.assertEqual(config['profiles']['planning']['model_reasoning_effort'], 'high')
             # AGENTS.md 구패턴 0 + 어휘 표 신형 2행.
             agents_md = (home / 'AGENTS.md').read_text()

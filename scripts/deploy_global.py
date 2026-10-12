@@ -327,16 +327,18 @@ def _gate_g1(codex_home: Path, config_pre: dict) -> dict:
 
 
 def _gate_g2(codex_home: Path) -> dict:
-    expected = ['config model must be gpt-6-luna',
-                'config model_reasoning_effort must be max']
+    # r41: r40이 전역 config.toml 루트를 gpt-6-luna/max로 확정했으므로
+    # verify_global_install이 깨끗이 통과(exit 0)해야 게이트 통과다.
+    # 구 계약(Verify가 정확히 2개의 구 모델 실패를 보고해야 통과)은
+    # 정상 설치에서 영원히 실패하는 역방향 계약이었다.
     result = subprocess.run(
         [sys.executable, str(ROOT / 'scripts/verify_global_install.py')],
         env=dict(os.environ, CODEX_HOME=str(codex_home)),
         capture_output=True, text=True)
     failures = [line[2:] for line in result.stdout.splitlines()
-                if line.startswith('- ')]
-    passed = result.returncode == 1 and failures == expected
-    return {'pass': passed, 'verify_exit': result.returncode, 'failures': failures}
+                if line.startswith('- ')] if result.returncode != 0 else []
+    return {'pass': result.returncode == 0,
+            'verify_exit': result.returncode, 'failures': failures}
 
 
 def _gate_g3(mirrors: dict[str, Path]) -> dict:
