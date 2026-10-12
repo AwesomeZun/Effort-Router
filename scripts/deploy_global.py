@@ -34,19 +34,19 @@ _AGENT_MIRROR_FILES = (
     'review-pr-high.md', 'review-pr-xhigh.md', 'security-audit.md',
 )
 _PLATFORM_MIRROR_FILES = (
-    'CLAUDE.md', 'README.md', 'chat-app.md', 'codex.md', 'gemini.md',
-    'glm.md', 'grok.md', 'qwen.md', 'zcode.md',
+    'CLAUDE.md', 'README.md', 'chat-app.md', 'codex.md', 'glm.md', 'zcode.md',
 )
 _SCRIPT_MIRROR_FILES = (
     'configure_codex_plan.py', 'jev_judge.py', 'jev_modes.py',
     'neverstuck_gate.py', 'tree_gate.py', 'verify_exec.py',
     'verify_global_install.py', 'verify_pin.py', 'worktree_gate.py',
-    'worktree_gate_lib.py',
+    'worktree_gate_lib.py', 'usage_log.py',
     'test_codex_routing.py', 'test_jev_judge.py', 'test_jev_modes.py',
     'test_jev_modes_extra.py', 'test_neverstuck_gate.py', 'test_plan_routing.py',
     'test_tree_claim_hook.py', 'test_tree_gate.py', 'test_verify_exec.py',
     'test_verify_pin.py', 'test_worktree_gate.py', 'test_worktree_gate_hardening.py',
     'deploy_global.py', 'test_deploy_global.py', 'test_verify_duplicate_detection.py',
+    'test_usage_log.py',
 )
 MIRROR_MANIFEST = (
     _ROOT_MIRROR_FILES
@@ -193,7 +193,9 @@ def _count_changes(codex_home: Path, mirrors: dict[str, Path],
 def _snapshot(backup_root: Path, codex_home: Path,
               mirrors: dict[str, Path]) -> tuple[Path, int]:
     stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ-')
-    snapshot = backup_root / f'{stamp}deploy'
+    # mkdtemp keeps the snapshot unique when two deploys land in the same second.
+    backup_root.mkdir(parents=True, exist_ok=True)
+    snapshot = Path(tempfile.mkdtemp(prefix=f'{stamp}deploy-', dir=backup_root))
     (snapshot / 'mirrors' / 'codex').mkdir(parents=True)
     (snapshot / 'mirrors' / 'claude').mkdir()
     count = 0
