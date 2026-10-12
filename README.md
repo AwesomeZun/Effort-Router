@@ -18,6 +18,19 @@ python3 scripts/dashboard_server.py   # → http://localhost:5777
 
 3뷰(과업 목록 · 실행 현황 · 과업 상세) — [상세 계약](#html-대시보드-r37)
 
+워크스페이스 전 프로젝트 전환(r41)은 표준 기동 커맨드를 쓴다:
+
+```bash
+setsid nohup python3 scripts/dashboard_server.py --workspace /mnt/d/DEV/acc0mplish > ~/.cache/effort-router-dashboard.log 2>&1 &   # → http://localhost:5777
+```
+
+인자 없이 기동하면 home 단일 프로젝트만 표시한다. API는 `GET /api/projects` ·
+`GET /api/tasks?project=<id>` · `GET /api/bundle/<project>/<folder>`(기존
+`/api/tasks` · `/api/bundle/<folder>`도 유지). 보안 가드: Host가
+`127.0.0.1:<포트>`·`localhost:<포트>`가 아니면 404이고, `/api/*`는 교차 사이트
+fetch(Sec-Fetch-Site)를 차단한다. 성능 한계: ops-admin(103과업) 스캔은 drvfs에서
+약 2.7초 — 실측 중앙값(기준선 3.1초 대비 개선).
+
 ## 왜 필요한가
 
 - 단일 모델·단일 에포트로 모든 과업을 처리하면 단순 수정에 과투자, 대형 변경에 과소검증이 된다
@@ -175,8 +188,9 @@ python3 scripts/dashboard_server.py --port 0   # OS 할당 포트 — stdout REA
 | 라우트 | 응답 |
 |---|---|
 | `/` | 대시보드 HTML |
-| `/api/tasks` | 과업 상태 JSON — `docs/task-id/*/state.json` 전수 스캔 + `excerpt`(원 요구 발췌)·`mtime` 확장 |
-| `/api/bundle/<folder>` | 과업 번들 원문 JSON(`{"folder", "markdown"}`) — state.json 보유 폴더 한정, 4단계 경로 검증 |
+| `/api/projects` | 프로젝트 이름 목록 JSON(`{"home", "count", "projects"}`) — r41. `--workspace` 지정 시 워크스페이스 전 프로젝트 |
+| `/api/tasks` | 과업 상태 JSON — 쿼리 없음 = home, `?project=<id>` = 해당 프로젝트만(r41) + `excerpt`(원 요구 발췌)·`mtime` 확장 |
+| `/api/bundle/<folder>` | 과업 번들 원문 JSON(`{"folder", "markdown"}`) — home 레거시. `/api/bundle/<project>/<folder>`는 2세그먼트 확장(`{"project", "folder", "markdown"}`, r41) |
 | `/app.js` · `/style.css` · `/tokens.css` · `/markdown.js` · `/views/*.js` | 정적 자원 (고정 매핑 — 이 외 경로는 전부 404) |
 
 뷰는 해시 라우팅으로 전환한다 — `#/`(과업 목록, 기본)·`#/activity`(실행 현황)·
