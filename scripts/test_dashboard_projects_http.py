@@ -403,6 +403,9 @@ class ProjectHttpTests(unittest.TestCase):
         status, _, _ = http_request(self.base_url, '/',
                                     headers={'Sec-Fetch-Site': 'cross-site'})
         self.assertEqual(status, 200, '정적 라우트는 면제돼야 한다')
+        status, _, _ = http_request(self.base_url, '/api/bundle/home-proj/alpha-done',
+                                    headers={'Sec-Fetch-Site': 'cross-site'})
+        self.assertEqual(status, 404, '번들 API도 Sec-Fetch-Site 가드 대상이다')
 
     @unittest.skipUnless(os.name == 'posix', '심볼릭 링크 필요')
     def test_h14_linked_excluded(self):

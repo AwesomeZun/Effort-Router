@@ -378,6 +378,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
     def send_bundle(self, route: str) -> None:
         """번들 원문 JSON — GET 시점마다 재독(캐시 없음)·nofollow 판독 실패는 404."""
+        if not self.api_guard():  # D8 — 번들 API도 /api/* 가드 대상(④리뷰 HIGH 수선)
+            return
         result = resolve_bundle_route(self.server.root, self.server.workspace,
                                       route[len(BUNDLE_API_PREFIX):])
         if result is None:
