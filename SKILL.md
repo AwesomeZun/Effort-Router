@@ -138,7 +138,7 @@ Stagehand 게이트는 브라우저 실행 계층(Stagehand)과 판단 계층(�
 
 **권한 계약**: 게이트 결과(종료코드)는 진행·재시도·중단·상향 판정의 입력일 뿐이다 — 판정 권한은 메인 세션이 가진다(jev 권한 계약 평행: 추천만, 판정은 메인).
 
-**실경로 미검증 캐베**: 실 Stagehand 실행 경로는 모의 러너만으로 검증됐다 — 러너가 쓰는 최소 표면(`Stagehand(env='LOCAL', model_name=...)`·`page.act/observe/extract`)과 stagehand 4.1.0 공식 표면(`Stagehand.create`·`model_api_key` 등)이 불일치할 수 있고, 첫 실실행 실패가 exit 1(retry-exhausted)로 오진단될 수 있다 — 첫 실실행은 소규모 태스크로 수동 확인한다.
+**실경로 캐베 (r39 갱신)**: 러너의 SDK 호출 표면은 r39 PR-0에서 설치된 stagehand 4.1.0 공식 표면(`local_browser.launch` → `Stagehand.create(browser=...)` → `stagehand.act/observe/extract(page=...)`)에 맞춰 수리했다 — 수리 전에는 직접 생성(`Stagehand(env=...)`)이 SDK의 TypeError로 실패했다. 실 LLM 키가 없는 환경에서는 실브라우저 실행이 검증되지 않았으므로(모의 가짜 SDK 단위테스트로만 호출 계약 확인) 첫 실실행은 소규모 태스크로 수동 확인한다.
 
 **하니스 무관성**: 게이트는 subprocess CLI라 Codex·ChatGPT·Claude 어느 하니스에서도 동일하게 호출된다 — SKILL.md는 공용 계약 문서이며 하니스 고유 메커니즘에 의존하지 않는다.
 
@@ -255,9 +255,29 @@ state.json 선택 필드 `tree_claim`: `{"session_id": "<id>", "claimed_utc": "<
 
 ## 2. 라우팅 테이블
 
-아래 역할만 호출한다. Codex는 `~/.codex/agents/*.toml`, Claude Code는 `~/.claude/agents/*.md`의 동명 역할을 사용한다. 테이블 밖 파일이 있어도 무시한다 — **존재 ≠ 허가**. 감시·운영 역할 `ops-supervisor`는 티어 단계 밖 구성원으로, 워치독 대상 스폰이 존재할 때만 메인 세션이 직접 호출한다(온디맨드 — 상시 배치 아니다. 근거: 결함 포착 실적 0건, r14 자아비판 K5) — 세션 토폴로지는 `platforms/claude.md`.
+아래 역할만 호출한다. Codex는 `~/.codex/agents/*.toml`, Claude Code는 `~/.claude/agents/*.md`의 동명 역할을 사용한다. 테이블 밖 파일이 있어도 무시한다 — **존재 ≠ 허가**. 감시·운영 역할 `ops-supervisor`는 티어 단계 밖 구성원으로, 워치독 대상 스폰이 존재할 때만 메인 세션이 직접 호출한다(온디맨드 — 상시 배치 아니다. 근거: 결함 포착 실적 0건, r14 자아비판 K5) — 세션 토폴로지는 `platforms/CLAUDE.md`.
 
 **테이블 확장 판정**: 신규 에이전트 등재는 독립된 권한과 별도 검증 가능한 판단을 내놓을 때만 한다.
+
+### 4케이스 허용 모델·effort 조합 (사용자 확정 2026-10-12)
+
+4케이스 = ① Claude Code · ② Claude Code + GLM 백엔드 · ③ ChatGPT 앱 & Codex · ④ Z.ai 앱(ZCode). 허용 조합은 아래 9개뿐이다 — 역할 파일·어댑터·Output Contract 어디에도 이 밖의 조합을 쓰지 않는다(계약 테스트 `scripts/test_model_combos.py`로 강제).
+
+| 케이스 | 허용 조합 | 기본 용도 |
+|---|---|---|
+| ③ ChatGPT·Codex | `gpt-6-luna / max` | **일반 작업 — 항상 기본값** |
+| ③ ChatGPT·Codex | `gpt-6.1-sol / high` | 계획·검토·고난도·보안 판정 |
+| ③ ChatGPT·Codex | `gpt-6.1-sol / low` | S/M 간이 리뷰 (`review-pr-high`) |
+| ① Claude Code | `opus-5.5 / high` | 계획·검토·리뷰·보안 (opus 슬롯) |
+| ① Claude Code | `haiku-5.5 / high` | 코드 구현 전용 (`coder-medium`·`implement-med`) |
+| ① Claude Code | `sonnet / high` | 임계경로 구현·코어 (`implement-xhigh`·`core-xhigh`·`ops-supervisor`) |
+| ② Claude Code + GLM | `glm-5.3 / max` | 최고 판정·보안·XL 임계경로 |
+| ② Claude Code + GLM | `glm-5.3 / high` | 일반 계획·검토 (심층 동시 상한 1) |
+| ② Claude Code + GLM | `glm-5.3-flash / max` | 반복 구현·리컨·대량 소비 |
+| ④ ZCode | 위 ② 조합과 동일 | GLM 백엔드 — ② 정책 그대로 |
+
+- 케이스 ②·④는 모델 선택이 메인 세션 단일(스폰에 모델 인자 없음)이므로 과업 단위로 전환한다.
+- `gpt-6-luna / max`는 상시 기본이다 — 다른 조합은 위 용도에 해당할 때만 쓴다.
 
 ### Codex 전역 라우팅 정책
 
@@ -275,14 +295,14 @@ state.json 선택 필드 `tree_claim`: `{"session_id": "<id>", "claimed_utc": "<
 - ① 계획: 생략
 - ② 검토: 셀프 재실행 확인(§3)
 - ③ 구현: 메인 세션 직접 또는 `coder-medium` (`gpt-6-luna / max`)
-- ④ 리뷰: `review-pr-high` (`gpt-6.1-sol / high`, 텍스트·스타일만 변경 시 생략)
+- ④ 리뷰: `review-pr-high` (`gpt-6.1-sol / low`, 텍스트·스타일만 변경 시 생략)
 - 완료 기록: 메인이 최소 state.json 1회 기록(§5 'S티어 최소 기록')
 
 ### M
 - ① 계획: `plan-high` (`gpt-6.1-sol / high`)
 - ② 검토: `plan-adversary-xhigh` (`gpt-6.1-sol / high`)
 - ③ 구현: `implement-med` (`gpt-6-luna / max`)
-- ④ 리뷰: `review-pr-high` (`gpt-6.1-sol / high`)
+- ④ 리뷰: `review-pr-high` (`gpt-6.1-sol / low`)
 
 ### L
 - ① 계획: `plan-high` (`gpt-6.1-sol / high`, Phase 분해)
@@ -443,22 +463,22 @@ verify(검증) = ④리뷰 통과 후 done 전 **메인 세션의 핵심 테스�
 
 Codex와 ChatGPT는 §2의 OpenAI 모델 정책을 직접 적용한다. 다른 하니스는 티어 판정(§1)·증거 계약·Output Contract만 유지하고 고유 모델 체계로 치환한다.
 
-| 개념 | Claude Code (기준) | Codex CLI | Qwen Code | Gemini CLI |
-|------|--------------------|-----------|-----------|------------|
-| 서브에이전트 | `~/.claude/agents/` + Agent 스폰 | 멀티에이전트 도구(`spawn_agent` 등, 기본 on)·커스텀 에이전트 TOML(`~/.codex/agents/`·`.codex/agents/`) | `/fork` 배경 에이전트(전체 대화 상속) — 역할별 스폰 미확인 | 빌트인 서브에이전트(`@이름` 지정·자동 위임) + `settings.json` `agents.overrides` |
-| effort | 에이전트 파일 frontmatter 고정 | `model_reasoning_effort`(low~max, 지원 범위는 모델 의존)·스폰 기본값 `agents.default_subagent_reasoning_effort` | settings `model.*` — effort 상당 키 미확인 | thinking budget(생성 설정) — effort와 직접 대응 없음 |
-| 모델 지정 | 호출 시 `Agent(model:)` 덮어쓰기 | 스폰 시 명시(없으면 `agents.default_subagent_model`) | `settings.json`(프로젝트 > 사용자) | `agents.overrides.<에이전트>.modelConfig.model` |
-| 팬아웃(§2) | `plan-adversary-xhigh` 병렬 | 독립된 하위 작업이 있을 때 동명 custom agent를 스폰하며 L=3렌즈, XL=5렌즈 | 미확인 | 위임 가능하나 렌즈 팬아웃 계약 없음 → 미적용 |
-| 상태·인계(§5) | state.json + 증거번들(스폰 간 인계) | 파일 계약은 하니스 무관 — 수동 운반 시에만 성립 | 좌동 | 좌동 |
-| 컨텍스트 등재 | CLAUDE.md·스킬 | AGENTS.md(`~/.codex/` → 리포 → 하위 디렉터리) + 로컬 Skill | QWEN.md(+AGENTS.md 판독) | GEMINI.md(글로벌 → 워크스페이스 → JIT) |
+| 개념 | Claude Code (기준) | Codex CLI |
+|------|--------------------|-----------|
+| 서브에이전트 | `~/.claude/agents/` + Agent 스폰 | 멀티에이전트 도구(`spawn_agent` 등, 기본 on)·커스텀 에이전트 TOML(`~/.codex/agents/`·`.codex/agents/`) |
+| effort | 에이전트 파일 frontmatter 고정 | `model_reasoning_effort`(low~max, 지원 범위는 모델 의존)·스폰 기본값 `agents.default_subagent_reasoning_effort` |
+| 모델 지정 | 호출 시 `Agent(model:)` 덮어쓰기 | 스폰 시 명시(없으면 `agents.default_subagent_model`) |
+| 팬아웃(§2) | `plan-adversary-xhigh` 병렬 | 독립된 하위 작업이 있을 때 동명 custom agent를 스폰하며 L=3렌즈, XL=5렌즈 |
+| 상태·인계(§5) | state.json + 증거번들(스폰 간 인계) | 파일 계약은 하니스 무관 — 수동 운반 시에만 성립 |
+| 컨텍스트 등재 | CLAUDE.md·스킬 | AGENTS.md(`~/.codex/` → 리포 → 하위 디렉터리) + 로컬 Skill |
 
 - **ChatGPT 데스크톱 앱 Codex 화면**: Codex CLI와 같은 로컬 Skill·`config.toml`·custom agents를 사용한다.
 - **ChatGPT Work**: Skill은 사용할 수 있으나 로컬 Codex custom-agent TOML을 전제로 하지 않는다. 에디터의 모델·reasoning control에서 §2 조합을 선택하고, 호스팅 subagent는 실제 독립 병렬 작업이 있을 때만 요청한다.
 
 - **GLM Coding Plan(Z.ai)**: 하니스가 아니라 Claude Code의 백엔드 교체다 — 적용 대상에 Claude Code가 공식 포함됨. 슬롯 실체가 프록시 매핑을 따르고 effort 강등(§3 실측)이 발생할 수 있다. 이원 모델 정책으로 모든 플랜이 GLM-5.3과 GLM-5.3-Flash를 함께 지원한다 — 치환 기준과 비전(시각 이해 MCP 번들)은 `platforms/glm.md`를 따른다(zcode.md는 동결 어댑터 — 사용 요청 시 본문에서 재생성). 심층(high급) 스폰은 백엔드 동시성 상한 내에서만 병렑한다(GLM-5.3 상한 1 — 팬아웃은 렌즈 직렬화·경량 렌즈 병렬로 치환, `platforms/glm.md`) — 직렬이 기본이며 사용자 발화로 심층 병렬 모드에 진입한다(언제든 즉시 전환·해제 발화 또는 대화 세션 종료까지 지속, 무지정 2).
-- **Claude Code 10세션 토폴로지**: 세션 1 두뇌(메인)·세션 2 감시 Ops(`ops-supervisor`)·세션 3–10 작업 슬롯(심층 1(직렬 기본 — 사용자 발화로 병렬 모드 전환·세션 한정 지속) + 경량 7)의 자율 병렬 운용 형태다 — 슬롯 배정·GLM 동시성 치환·두뇌 프로토콜은 `platforms/claude.md`를 따른다.
+- **Claude Code 10세션 토폴로지**: 세션 1 두뇌(메인)·세션 2 감시 Ops(`ops-supervisor`)·세션 3–10 작업 슬롯(심층 1(직렬 기본 — 사용자 발화로 병렬 모드 전환·세션 한정 지속) + 경량 7)의 자율 병렬 운용 형태다 — 슬롯 배정·GLM 동시성 치환·두뇌 프로토콜은 `platforms/CLAUDE.md`를 따른다.
 - 표의 '미확인'은 공식 문서에서 확인하지 못한 항목이다 — 확인 전까지 단정하지 않는다.
-- 하니스별 삽입 단편과 설치 절차는 동봉 `platforms/`에 둔다 — 본문이 우선, 어댑터는 파생이다. 실행·실측 기반 하니스(codex·glm·claude·README)는 유지 관리하고, 미실행 하니스(qwen·gemini·grok·zcode·chat-app) 어댑터는 동결한다 — 갱신 대상에서 제외, 사용 요청 시 본문에서 재생성한다(동결 근거: 실측 통과 0건·파생 동기화 실패 1건 r11).
+- 하니스별 삽입 단편과 설치 절차는 동봉 `platforms/`에 둔다 — 본문이 우선, 어댑터는 파생이다. 활성 하니스(claude·glm·codex·chat-app·zcode)는 유지 관리한다. 미사용 하니스(qwen·gemini·grok) 어댑터는 2026-10-12 삭제했다(동결 근거: 실측 통과 0건·파생 동기화 실패 1건 r11).
 - jev 판단 계층은 하니스 무관 계층이다(§5 파일 계약과 동일 — 셸+환경변수 하니스면 어디서나 호출, 키·감사 규칙은 jev 절 준수).
 
 ## Output Contract

@@ -9,7 +9,23 @@
 - GLM Coding Plan은 하니스가 아니라 **백엔드 교체**다 — 공식 적용 대상에 Claude Code가 포함된다(docs.z.ai/devpack).
 - 하니스 불변이므로 본문 전 계약 — §2 화이트리스트·§3 제약·§5 state.json — 이 **그대로 유효**하다. 적용 제외 없음(단, §2 팬아웃 병렬은 백엔드 동시성 상한 내에서 — 하단 GLM-5.3 상한).
 - 연결 설정(엔드포인트·키·env 값 등)은 Z.ai 공식 문서(docs.z.ai/devpack)를 따른다 — 본 문서는 구체 값을 단정하지 않는다.
-- **이원 모델 정책**: 모든 플랜이 GLM-5.3과 GLM-5.3-Flash를 함께 지원한다. Flash는 크레딧 1/3·주간 토큰 약 3배이며 시각 이해 MCP가 번들된다. §2 치환 기준: 계획·검토·리뷰·난제 = GLM-5.3, 확정 요구의 반복 실행 = Flash 선택 가능.
+- **허용 조합(사용자 확정 2026-10-12)**: `glm-5.3 / max`·`glm-5.3 / high`·`glm-5.3-flash / max`. 이 밖의 조합은 쓰지 않는다.
+- **이원 모델 정책**: 모든 플랜이 GLM-5.3과 GLM-5.3-Flash를 함께 지원한다. Flash는 크레딧 1/3·주간 토큰 약 3배이며 시각 이해 MCP가 번들된다. §2 치환 기준: 최고 판정·보안 = `glm-5.3 / max`, 일반 계획·검토 = `glm-5.3 / high`, 확정 요구의 반복 실행 = `glm-5.3-flash / max`.
+
+## 역할별 권장 조합 (사용자 배분 2026-10-12)
+
+| 역할 | 허용 조합 | 근거 |
+|---|---|---|
+| `coder-medium` | `glm-5.3-flash / max` | 코드 구현(경량) — 반복 실행 |
+| `implement-med` | `glm-5.3-flash / max` | 코드 구현(M) — 반복 실행 |
+| `implement-xhigh` | `glm-5.3 / max` | 임계경로 구현(XL) |
+| `core-xhigh` | `glm-5.3 / max` | 코어 모듈 구현 |
+| `plan-high` | `glm-5.3 / high` | 계획(M/L) |
+| `plan-xhigh` | `glm-5.3 / high` | 계획(XL) — 심층 동시 상한 1 |
+| `plan-adversary-xhigh` | `glm-5.3 / max` | 적대 검토 — 판정 |
+| `review-pr-high` | `glm-5.3 / high` | S/M 리뷰 |
+| `review-pr-xhigh` | `glm-5.3 / max` | L/XL 리뷰 |
+| `security-audit` | `glm-5.3 / max` | 보안 판정 |
 
 ## GLM-5.3 동시성 상한 (본문 §6 단서)
 

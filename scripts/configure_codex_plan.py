@@ -21,7 +21,7 @@ EXPECTED_AGENTS = {
     'plan-high': ('gpt-6.1-sol', 'high'),
     'plan-xhigh': ('gpt-6.1-sol', 'high'),
     'plan-adversary-xhigh': ('gpt-6.1-sol', 'high'),
-    'review-pr-high': ('gpt-6.1-sol', 'high'),
+    'review-pr-high': ('gpt-6.1-sol', 'low'),
     'review-pr-xhigh': ('gpt-6.1-sol', 'high'),
     'security-audit': ('gpt-6.1-sol', 'high'),
 }
