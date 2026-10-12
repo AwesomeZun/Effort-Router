@@ -193,7 +193,9 @@ def _count_changes(codex_home: Path, mirrors: dict[str, Path],
 def _snapshot(backup_root: Path, codex_home: Path,
               mirrors: dict[str, Path]) -> tuple[Path, int]:
     stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ-')
-    snapshot = backup_root / f'{stamp}deploy'
+    # mkdtemp keeps the snapshot unique when two deploys land in the same second.
+    backup_root.mkdir(parents=True, exist_ok=True)
+    snapshot = Path(tempfile.mkdtemp(prefix=f'{stamp}deploy-', dir=backup_root))
     (snapshot / 'mirrors' / 'codex').mkdir(parents=True)
     (snapshot / 'mirrors' / 'claude').mkdir()
     count = 0
